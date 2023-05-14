@@ -18,6 +18,13 @@ The same pipeline was used For the mitochondrial genome, except that the referen
 while read ind; do bash sambamba markdup -t 16 --tmpdir /scratch/tdecroly 2_bwa_mem/$ind.vs.melanargia_ines.PT_MI_8.v2_0.sequences.bam 2_bwa_mem/$ind.vs.melanargia_ines.PT_MI_8.v2_0.sequences.MD.bam $ind; done < individuals.txt
 ```
 
+## Computing read depth with mosdepth 
+
+```bash
+# median and per-base read depth 
+mosdepth -t 4 -m $ind.vs.melanargia_ines.PT_MI_8.v2_0.sequences 2_bwa_mem/$ind.vs.melanargia_ines.PT_MI_8.v2_0.sequences.MD.bam
+```
+
 ## Calling variants with freebayes 
 
 ### Nuclear genome
@@ -31,7 +38,6 @@ freebayes-parallel <(fasta_generate_regions.py 0_ref/melanargia_ines.PT_MI_8.v2_
 ```bash
 freebayes -f 0_ref/Circularized_assembly_1_MI_8.fasta --use-best-n-alleles 8 --no-population-priors --use-mapping-quality --ploidy 1 --haplotype-length -1 --bam 2.1_mito_bwa_mem/ES_MI_1647.vs.Circularized_assembly_1_MI_8.sequences.MD.bam --bam 2.1_mito_bwa_mem/PT_MI_7.vs.Circularized_assembly_1_MI_8.sequences.MD.bam --bam 2.1_mito_bwa_mem/PT_MI_8.vs.Circularized_assembly_1_MI_8.sequences.MD.bam --bam 2.1_mito_bwa_mem/PT_MI_61.vs.Circularized_assembly_1_MI_8.sequences.MD.bam --bam 2.1_mito_bwa_mem/MA_MI_1620.vs.Circularized_assembly_1_MI_8.sequences.MD.bam --bam 2.1_mito_bwa_mem/DZ_MI_1624.vs.Circularized_assembly_1_MI_8.sequences.MD.bam --bam 2.1_mito_bwa_mem/TN_MI_1619.vs.Circularized_assembly_1_MI_8.sequences.MD.bam --bam 2.1_mito_bwa_mem/PT_MI_86.vs.Circularized_assembly_1_MI_8.sequences.MD.bam --bam 2.1_mito_bwa_mem/ES_MI_1686.vs.Circularized_assembly_1_MI_8.sequences.MD.bam --bam 2.1_mito_bwa_mem/ES_MI_1684.vs.Circularized_assembly_1_MI_8.sequences.MD.bam --bam 2.1_mito_bwa_mem/ES_MI_1683.vs.Circularized_assembly_1_MI_8.sequences.MD.bam --bam 2.1_mito_bwa_mem/ES_MI_1682.vs.Circularized_assembly_1_MI_8.sequences.MD.bam --bam 2.1_mito_bwa_mem/ES_MI_1680.vs.Circularized_assembly_1_MI_8.sequences.MD.bam --bam 2.1_mito_bwa_mem/DZ_MI_1685.vs.Circularized_assembly_1_MI_8.sequences.MD.bam --bam 2.1_mito_bwa_mem/DZ_MI_1681.vs.Circularized_assembly_1_MI_8.sequences.MD.bam | gzip -c - > thomas/01_freebayes/melanargia_ines.vs.Circularized_assembly_1_MI_8.variant.vcf.gz && touch freebayes_mitochondrial_variant.melanargia_ines.done
 ```
-
 
 ## Filtering variants with gIMble preprocess 
 

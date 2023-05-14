@@ -36,10 +36,21 @@ ggplot(data = eurafrica) +
 ggsave("labelled_samples_map.png", height = 8, width = 7, dpi = 600)
 ```
 
-
 ## PCA
 
+```{r}
+file <- "autosomal_pca.csv"
 
+pca %>%
+  ggplot(aes(PC1, PC2, label = ID, col = Region_Narrow)) +
+  geom_point(size = 3) +
+  scale_color_manual(values = MetBrewer::met.brewer("Egypt", 3)) +
+  geom_label_repel(box.padding = 0.6, max.overlaps = 100, seed = 2023, show.legend = FALSE) +
+  labs(col = "Region", x = "PC1 (45.8%)", y = "PC2 (13.8%)", title = "PCA") + 
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
 
 
 ## Autosomal pairwise $d_{xy}$
@@ -90,8 +101,20 @@ dxys %>%
 
 ### Neo-sex chromosome heterozygosity
 
-### PCA
+```{r}
+hets <- read.csv(here("neosex.4D.heterozygosities.csv"))
 
+hets %>%
+  left_join(iberia, by = c("id" = "ID")) %>%
+  mutate(id = fct_reorder(id, order)) %>%
+  ggplot(aes(x = id, y = het, fill = Sex)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("#1f77b4", "#ff7f0e")) +
+  labs(y = "", x = "Heterozygosity", title = "Chromosome 14") +
+  theme_light() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  facet_wrap(~Region, scales = "free_x")
+```
 
 ### Trees
 
@@ -151,7 +174,6 @@ b <- das %>%
 plot <- a / b
 plot
 ```
-
 
 ## Mitochondrial and neo-W trees
 

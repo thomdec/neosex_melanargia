@@ -1,6 +1,8 @@
 # Neo-sex chromosome in _Melanargia ines_
 
-This repository contains codes and scripts used for the report "Neo-W degradation locally reversed by rare recombination events in the Spanish marbled white"
+**This repository is not up-to-date. Will update asap!**
+
+This repository contains codes and scripts used for the report "Rewinding the ratchet: rare recombination locally rescues neo-W degeneration and generates plateaus of sex-chromosome divergence"
 
 Analyses are described in the following markdown files: 
 
@@ -8,7 +10,7 @@ Analyses are described in the following markdown files:
 
 - [Estimation of diversity and divergence](diversity_divergence.md)
 
-- [PCA and demographic inference using gIMble](pca_gIMble.md)
+- [PCA, and demographic inference using gIMble](pca_gIMble.md)
 
 - [Phylogenetic tree construction and topology testing](phylogenetic_trees.md)
 

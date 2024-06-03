@@ -1,9 +1,5 @@
 # Rewinding the ratchet: Analyses
 
-TO DO
-- MULTICALLABLE BED
-- FASTQ
-
 This repository contains codes and scripts used for the report "Neo-W degradation locally reversed by rare recombination events in the Spanish marbled white"
 
 Analyses are described in the following markdown files: 

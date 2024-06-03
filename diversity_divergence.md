@@ -33,7 +33,7 @@ bedtools subtract -a multiinter.callable.array.bed.gz -b vcf.fails.bed.gz | gzip
 
 Diversity and divergence can then be computed with the following functions.
 
-```{python}
+```python
 import allel
 import pybedtools
 import numpy as np
@@ -95,7 +95,7 @@ def calc_dxy(g, coverage, start_end, pop1, pop2):
 
 Populations are defined using a .csv file containing the population for each sample. 
 
-```{python}
+```python
 pop_df = pd.read_csv(pop_file, names=["id", "pop"])
 pops = {}
 for pop in unique_pops:
@@ -128,7 +128,7 @@ for i in range(len(vcf_header.samples)):
 
 ### Including a mask (eg. 0D and 4D sites)
 
-```{python}
+```python
 mask_bed = pybedtools.BedTool("mask_bed_file.bed")
 multicallable_bed = pybedtools.BedTool("multicallable_bed_file.bed")
 
@@ -153,7 +153,7 @@ for pop1, pop2 in combinations(pops, 2):
 
 ## Windowed estimates of $\pi$ and d_{xy}
 
-```{python}
+```python
 def create_windows(window_size, chr_len):
     """Create windows"""
 

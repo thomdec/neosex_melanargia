@@ -1,6 +1,6 @@
 # Change point analysis
 
-```{r}
+```r
 library(tidyverse)
 library(bcp)
 

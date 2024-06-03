@@ -2,7 +2,7 @@
 
 ## Find variant types from phased data
 
-```{python}
+```python
 import numpy as np
 import pandas as pd
 from itertools import permutations, combinations
@@ -42,7 +42,7 @@ mutations, counts = np.unique(folded_genotypes, axis=0, return_counts=True)
 
 One can find the expected distribution of variant types under a neutral model of evolution with recombination
 
-```{python}
+```python
 sfs = [1/i for i in range(1, n)]
 folded_sfs = np.add(sfs, np.flip(sfs))[:int(np.floor(n/2))]
 sfs_norm = folded_sfs/np.sum(folded_sfs)
@@ -54,7 +54,7 @@ expected_freq = sfs_norm[np.sum(mutations, axis=1) - 1] / binom(7, np.sum(mutati
 A tree was constructed by hand from the variant types (taking into account the most prevalent non-singleton variant types) 
 Afterwards, we can find the mutations which are consistent or inconsistent with the majority tree:
 
-```{python}
+```python
 true_mutations = np.array([[0, 0, 0, 0, 0, 0, 1], 
           [0, 0, 0, 0, 0, 1, 0],
           [0, 0, 0, 0, 1, 0, 0],

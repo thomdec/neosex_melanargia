@@ -89,7 +89,7 @@ pos_lof = pos[high_impacts][pos_idx][fixed_high_impact][mask_lof]
 
 Intersect the position of fixed LOF variants with the position of each genes
 
-```{python}
+```python
 # a bed file of genes can easily be created from the annotation.gff3
 genic_regions = np.asarray(pd.read_csv('genes.bed', sep="\t", usecols=(1, 2), names=("start", "end")))
 

@@ -1,4 +1,8 @@
-# Neo-sex chromosome in _Melanargia ines_
+# Rewinding the ratchet: Analyses
+
+TO DO
+- MULTICALLABLE BED
+- FASTQ
 
 This repository contains codes and scripts used for the report "Neo-W degradation locally reversed by rare recombination events in the Spanish marbled white"
 
@@ -6,19 +10,23 @@ Analyses are described in the following markdown files:
 
 - [Variant callaning and filtering](variant_calling_and_filtering.md)
 
+- [Principal Component Analysis](PCA.md)
+
 - [Estimation of diversity and divergence](diversity_divergence.md)
 
-- [PCA and demographic inference using gIMble](pca_gIMble.md)
+- [Demographic inference using gIMble and PSMC](gIMble.md)
 
-- [Phylogenetic tree construction and topology testing](phylogenetic_trees.md)
+- [Phylogenetic tree construction](trees.md)
+
+- [Change point analysis](change_point.md)
 
 - [Neo-sex chromosome phasing](neosex_phasing.md)
 
+- [Single tree test](variant_types.md)
+
 - [Gene expression analysis](gene_expression.md)
 
-- [High-impact mutations, purifying selection and K_0 / K_4](high_impact_purifying_K0_K4.md)
+- [Loss-of-function mutations](lof.md)
 
 
-The code for figures created in R are found in the [figure.qmd](figures.qmd) quarto document.
-
-
+The codes to create the figures found in the manuscript are in the [neosex_figures.qmd](neosex_figures.qmd) quarto document.

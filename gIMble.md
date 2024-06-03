@@ -1,34 +1,4 @@
-# Demographic inference
-
-## PCA
-
-```python
-import allel
-import numpy as np
-
-# import metadata
-metadata = pd.read_csv("../../z_metadata/id_sex_region.csv")
-
-# import vcf 
-callset = allel.read_vcf('../../1_clean_vcfs/autosomal/melanargia_ines_preprocess_autosomal_lw.vcf.gz',  fields=['calldata/GT', 'samples'])
-
-g = allel.GenotypeArray(allel.GenotypeDaskArray(callset['calldata/GT'])) # genotype array
-ac = g.count_alleles() # allele count array
-samples = callset['samples']
-
-# filter singletons and multi-allelic sites
-mask = (ac.max_allele() == 1) & (ac[:, :2].min(axis=1) > 1)
-mask_g = g.compress(mask, axis=0)
-
-# create the PCA input (i.e. number of alternative alleles per individual at each site)
-gn = mask_g.to_n_alt()
-gn
-
-# run the PCA
-coords, model = allel.pca(gn, n_components=4, copy=True, scaler='patterson', ploidy=2)
-
-# Coordinates of PC1 and PC2 are recorded in coords[:, 0] and coords[:, 1]. The variance explained by each component is recorded in model.explained_variance_ratio_[n -1], where n is the number of the component.
-```
+# Demographic history inference
 
 ## gIMble global demography 
 
@@ -80,4 +50,30 @@ gIMble query -l optimize/tally_blocks_k_2/div_model -z autosomes_intergenic.z
 gIMble query -l optimize/tally_blocks_k_2/div_model -z autosomes_intergenic.z --demes
 ```
 
+## MSMC
 
+The demographic history of the neo-Z chromosome was inferred with MSMC2 in males 
+
+```bash
+#!/bin/bash
+
+# msmc_pipeline.sh
+
+ind=$1
+
+bcftools view -s $ind -Oz -o vcfs/neosex.$ind.vcf.gz melanargia_ines.neosex.vcf.gz
+
+# the multicallable file format is explained in the diversity_divergence notebook
+grep $ind neosex.multicallable.bed > beds/$ind.bed
+
+../msmc-tools/generate_multihetsep.py vcfs/neosex.$ind.vcf.gz --mask beds/$ind.bed > inputs/$ind.multi_het_sep.txt
+
+# r of 3.4 was chosen based on the mutation and recombination rate of Heliconius melpomene
+../msmc2/build/release/msmc2 -i 30 -o results/$ind.neosex -r 3.4 inputs/$ind.multi_het_sep.txt
+```
+
+```bash
+while read ind; do bash msmc_pipeline.sh $ind; done < individuals.txt
+```
+
+The same commands were applied to autosomal data for all individuals in the dataset.

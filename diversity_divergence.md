@@ -1,349 +1,213 @@
-# Estimation of diversity and divergence
+# Estimation of nucleotide diversity and divergence
 
-## Global estimate of diversity and divergence
+## Global estimates of $\pi$ and d_{xy}
 
-Estimation of diversity and divergence relies on counting allelic difference between samples, as well as the total number of pairwise comparison operated. 
+Estimation of diversity and divergence are based on allelic difference between samples, as well as the total number of pairwise comparison. 
 
 - The number of allelic difference is computed from the VCF using scikit-allel. 
 
-- The number of pairwise comparison conducted is computed from the multi-callable bed file &mdash; a file containing for the individual that are called at each sites. 
+- The number of pairwise comparison conducted is computed from the multi-callable bed array &mdash; a file containing all the callable position for each individual.
 
 ```
-# example of a multi-callable bed file
-contig1 0   100 individual1,individual3
-contig1 100 150 individual1,individual2,individual3
-```
-
-The bed file is first transformed into a numpy array to speed up computations. The numpy array is composed of the intervals (start, end) in the first two columns, as well as a $n \times k$ matrix, where n is the number of intervals, and k is the number of samples. Callable intervals are recorded with $1$, missing intervals are recorded with $0$.
-
-```
-# example of a multi-callable bed file
+# example of a multi-callable bed array
+#The array is composed of the chromosome in the first column, the intervals (start, end) in the second and third two columns, as well as a $n \times k$ matrix, where n is the number of intervals, and k is the number of samples. Callable intervals are recorded with $1$, missing intervals are recorded with $0$.
 # the order of samples is in the callable matrix is the same as in the VCF file, for ease of computation
-0   100 1   0   1
-100 150 1   1   1
+contig1 0   100 1   0   1
+contig1 100 150 1   1   1
 ```
 
-The bed file is transformed to a numpy array with `bed_to_numpy.py` ([bed_to_numpy script](bed_to_numpy.py)). The script integrates multiprocessing (i.e. parralell processing on multiple cores).
+Filtered VCF were created with [gIMble repo](https://github.com/DRL/gimbleprep) (see [Variant callaning](variant_calling_and_filtering.md)). One can use the output of gimbleprep to make the multicallable bed array. When gimbleprep is run with the `-k` parameter (to keep the intermediate files), the hidden directory it produces contains:
+    - the callable regions for each individual (i.e. regions within the minimum depth set and 3 times the average depth, obtained with mosdepth quantised)
+    - a VCF file of failed variants (filtered out in the clean VCF, e.g. low quality sites, indels...)
+
+The multicallable bed array can be created as follow:
 
 ```bash
-python bed_to_numpy.py -i <multicallable.bed.gz> -o <output.name.txt.gz> -n <number_of_cores> -v <VCF.file.vcf>
+# create the multicallable array
+bedtools multiinter -i DZ_MI_1624.callable.bed DZ_MI_1681.callable.bed DZ_MI_1685.callable.bed MA_MI_1620.callable.bed TN_MI_1619.callable.bed ES_MI_1680.callable.bed ES_MI_1682.callable.bed ES_MI_1683.callable.bed ES_MI_1684.callable.bed ES_MI_1686.callable.bed PT_MI_61.callable.bed PT_MI_86.callable.bed PT_MI_7.callable.bed PT_MI_8.callable.bed ES_MI_1647.callable.bed -names DZ_MI_1624 DZ_MI_1681 DZ_MI_1685 MA_MI_1620 TN_MI_1619 ES_MI_1680 ES_MI_1682 ES_MI_1683 ES_MI_1684 ES_MI_1686 PT_MI_61 PT_MI_86 PT_MI_7 PT_MI_8 ES_MI_1647 | cut -f 1-3,6- | gzip > multiinter.callable.array.bed.gz
 
-
-# the output will be automatically gzipped if .gz is added at the end of the filename
-# the VCF is required to get the sample positions
+# remove the SNPs filtered out of the VCF from the multicallable array
+bcftools view vcf.filtered.vcf.gz -i "%FILTER!='PASS'" | bcftools query -f '%CHROM\t%POS0\t%END\t%FILTER\n' | gzip > vcf.fails.bed.gz
+bedtools subtract -a multiinter.callable.array.bed.gz -b vcf.fails.bed.gz | gzip > multiinter.callable.array.clean.bed.gz
 ```
 
-Heterozygosity $\pi$, $d_{xy}$, $d_a$ and $F_{\mathrm{ST}}$ are computed as follow: 
+Diversity and divergence can then be computed with the following functions.
 
-```python
+```{python}
 import allel
+import pybedtools
 import numpy as np
 import pandas as pd
 from scipy.special import comb
-from itertools import combinations, product
+from itertools import combinations
+import subprocess
 
-def calc_pi(pop_idx):
+def diff_within(g, pop):
+    """Returns per site allelic differences within a population"""
+    ac_pop = g[:, pop].count_alleles()
+    an_pop = np.sum(ac_pop, axis=1)
+    n_pairs = an_pop * (an_pop - 1) / 2
+    n_same = np.sum(ac_pop * (ac_pop - 1) / 2, axis=1)
+    n_diff = np.sum(n_pairs - n_same)
+    return(n_diff)
+
+def diff_between(g, pop1, pop2):
+    """Returns per site allelic differences between populations"""
+    ac_pop1 = g[:, pop1].count_alleles(max_allele=3)
+    ac_pop2 = g[:, pop2].count_alleles(max_allele=3)
+    an_pop1 = np.sum(ac_pop1, axis=1)
+    an_pop2 = np.sum(ac_pop2, axis=1)
+    n_pairs = an_pop1 * an_pop2 
+    n_same = np.sum(ac_pop1 * ac_pop2, axis=1)
+    n_diff = np.sum(n_pairs - n_same)
+    return(n_diff)
+
+def comp_within(coverage, start_end, pop):
+    """XX"""
+    sum_cov_pop = np.sum(coverage[:, pop], axis=1)
+    n_comp = np.sum(comb(2 * sum_cov_pop, 2) * (start_end[:, 1] - start_end[:, 0]))
+    return(n_comp)
+
+def comp_between(coverage, start_end, pop1, pop2):
+    """XX"""
+    sum_cov_pop1 = np.sum(coverage[:, pop1], axis=1)
+    sum_cov_pop2 = np.sum(coverage[:, pop2], axis=1)
+    n_comp = np.sum(4 * sum_cov_pop1 * sum_cov_pop2 * (start_end[:, 1] - start_end[:, 0]))
+    return(n_comp)
+
+def calc_pi(g, coverage, start_end, pop):
     """Returns pi within a population"""
 
-    # Calculation of the number of allelic difference within a population
-    ac_pop = g[:, idx].count_alleles(max_allele=3)
-    an_pop = np.sum(ac_pop, axis=1)
-    n_pairs = an_pop * (an_pop - 1) / 2
-    n_same = np.sum(ac_pop * (ac_pop - 1) / 2, axis=1)
-    n_diff = np.sum(n_pairs - n_same)
-    # Calculation of the number of pairwise comparisons 
-    sum_cov_pop = np.sum(coverage[:, pop_idx], axis=1)
-    tot_comps = np.sum(comb(2 * sum_cov_pop, 2) * (start_end[:, 1] - start_end[:, 0]))
-    pi = tot_diffs / tot_comps
+    n_diff = diff_within(g, pop)
+    n_comp = comp_within(coverage, start_end, pop)
+    pi = n_diff / n_comp
     return(pi)
 
-def calc_dxy(pop1, pop2):
+def calc_dxy(g, coverage, start_end, pop1, pop2):
     """"Returns dxy between two populations"""
 
-    # Computation of the number of allelic difference between two populations
-    ac_pop1 = g[:, idx1].count_alleles(max_allele=3)
-    ac_pop2 = g[:, idx2].count_alleles(max_allele=3)
-    an_pop1 = np.sum(ac_pop1, axis=1)
-    an_pop2 = np.sum(ac_pop2, axis=1)
-    n_pairs = an_pop1 * an_pop2 
-    n_same = np.sum(ac_pop1 * ac_pop2, axis=1)
-    n_diff = np.sum(n_pairs - n_same)
-
-    # Computation of the total number of comparisons between the two populations 
-    sum_cov_1 = np.sum(coverage[:, pop1], axis=1)
-    sum_cov_2 = np.sum(coverage[:, pop2], axis=1)
-    tot_comps = np.sum(2 * sum_cov_1 * 2 * sum_cov_2 * (start_end[:, 1] - start_end[:, 0]))
-    dxy = tot_diff / tot_comps
+    n_diff = diff_between(g, pop1, pop2)
+    n_comp = comp_between(coverage, start_end, pop1, pop2)
+    dxy = n_diff / n_comp
     return(dxy)
 
-# the VCF and the multicallable numpy array are imported
+```
 
-callset = allel.read_vcf(<vcf.gz>, fields=['calldata/GT', 'variants/POS', 'samples'])
-g = allel.GenotypeArray(allel.GenotypeDaskArray(callset['calldata/GT']))
+Populations are defined using a .csv file containing the population for each sample. 
+
+```{python}
+pop_df = pd.read_csv(pop_file, names=["id", "pop"])
+pops = {}
+for pop in unique_pops:
+    ids = pop_df[pop_df['pop'] == pop]['id']
+    pops[pop] = np.where(np.isin(vcf_header.samples, ids))[0]
+
+
+# import vcf
+vcf_header = allel.read_vcf_headers(vcf_file)
+callset = allel.read_vcf(vcf_file, fields=['calldata/GT', 'variants/POS', 'samples'])
 pos = callset['variants/POS']
-samples = callset['samples']
+g = allel.GenotypeArray(allel.GenotypeDaskArray(callset['calldata/GT']))
 
-multicallable_file = <multicallable.txt.gz>
-start_end = np.loadtxt(multicallable_file, dtype=int, usecols=(0, 1))
-coverage = np.loadtxt(multicallable_file, dtype=int, usecols=(list(range(2, len(samples) + 2))))
+# import multicallable bed file
+start_end = np.loadtxt(multicallable_file, usecols=(1, 2), dtype=int)
+coverage = np.loadtxt(multicallable_file, usecols=(list(range(3, len(vcf_header.samples) + 3))), dtype=int)
 
-
-# To define populations, one can import a .csv, or a .tsv file with the samples names (ID) and their respective populations (Population). 
-
-#The indices of the populations (i.e. where are the samples from which location in the VCF and the multicallable file) are obtained with:
-
-metadata = pd.read_csv(<metadata.csv>)
-
-pop1 = np.where(np.isin(samples, metadata[(metadata['Population'] == 'Pop1')]['ID']))[0]
-pop2 = np.where(np.isin(samples, metadata[(metadata['Population'] == 'Pop2')]['ID']))[0]
-pop3 = np.where(np.isin(samples, metadata[(metadata['Population'] == 'Pop3')]['ID']))[0]
-
-# a dictionary of population can be created to iterate over parameters function 
-pops = {'pop1' : pop1, 'pop2' : pop2, 'pop3' : pop3}
-
-
-# Finally, one can compute the statistics with:
-
-## pi
-pi_pop1 = calc_pi(pop1)
-pi_pop2 = calc_pi(pop2)
-
-## d_xy
-dxy = calc_dxy(pop1, pop2)
-
-## F_st
-mean_pi = (pi_pop1 + pi_pop2) / 2
-fst = (dxy - mean_pi) / (dxy + mean_pi) 
-
-## d_a 
-### for d_a, pi_ancestral can be chosen (for instance, it can be set to mean diversity, or to diversity from one population, depending on which is the best assumption for ancestral diversity)
-
-da = dxy - mean_pi
-
-## split time estimate using d_a
-mutation_rate = <mutation_rate>
-split_time = da / (2 * mutation_rate)
-```
-
-To automatised computations across populations, one can use the following codes:
-
-### Heterozygosity 
-
-```python
-res = list()
-for i, sample in enumerate(samples):
-    res.append((samples[i], calc_pi([i])))
-
-## One can export the result using pandas
-hets = pd.DataFrame(res, columns=['id', 'heterozygosity'])
-hets.to_csv('output_file.csv', index=False)
-```
-
-### Diversity
-
-```python
-res = list()
+# compute pi
 for pop in pops:
-    res.append(pop, calc_pi(pops[pop]))
+    print(pop, calc_pi(g, coverage, start_end, pops[pop]))
 
-diversity = pd.DataFrame(res, columns=['pop', 'pi'])
-```
-
-### Divergence
-
-```python
-res = list()
+# compute dxy
 for pop1, pop2 in combinations(pops, 2):
-    dxy = calc_dxy(pops[pop1], pops[pop2])
-    pi_1 = calc_pi(pops[pop1])
-    pi_2 = calc_pi(pops[pop2])
-    mean_pi = (pi_1 + pi_2) / 2
-    fst = (dxy - mean_pi) / (dxy + mean_pi)
-    da = dxy - mean_pi # this can be modified, depending on which ancestral d_a is chosen
-    res.append((pop1, pop2, dxy, fst, da))
+    print(pop1, pop2, calc_dxy(g, coverage, start_end, pops[pop1], pops[pop2]))
 
-divergence = pd.DataFrame(res, columns=['pop1', 'pop2', 'dxy', 'fst', 'da'])
+# compute heterozygosity for each individual 
+for i in range(len(vcf_header.samples)):
+    print(vcf_header.samples[i], calc_pi(g, coverage, start_end, [i]))
 ```
 
-### Pairwise divergence 
+### Including a mask (eg. 0D and 4D sites)
 
-```python
-# divergence between all sample pairs
+```{python}
+mask_bed = pybedtools.BedTool("mask_bed_file.bed")
+multicallable_bed = pybedtools.BedTool("multicallable_bed_file.bed")
 
-res = list()
-for i, j in combinations(range(len(samples)), 2):
-    dxy = calc_dxy([i], [j])
-    res.append((samples[i], samples[j], dxy))
+# create mask for the genotype array
+variant_bed = pybedtools.BedTool.from_dataframe(pd.DataFrame({'chr' : chrom, 'start' : pos - 1, 'end' : pos}))
+mask_variant_bed = variant_bed.intersect(mask_bed, c=True)
+mask_variant = np.asanyarray(mask_variant_bed)[:, 3].astype(int) > 0
 
-pairwise_div = pd.DataFrame(res, columns=['id1', 'id2', 'dxy'])
+# create mask for the multicallable bed file
+multicallable_bed = pybedtools.BedTool(multicallable_file)
+mask_multicallable_bed = multicallable_bed.intersect(mask_bed)
+mask_multicallable_array = np.asanyarray(mask_multicallable_bed)[:, 1:].astype(int)
 
+# compute pi
+for pop in pops:
+    print(pop, calc_pi(g[mask_variant], mask_multicallable_array[:, 2:], mask_multicallable_array[:, :2], pops[pop]))
 
-# divergence between all pairs from two different populations (i.e. no pair within population)
-
-res = list()
-for i, j in product(pop1, pop2):
-    dxy = calc_dxy([i], [j])
-    res.append((samples[i], samples[j], dxy))
-
-pairwise_div = pd.DataFrame(res, columns=['id1', 'id2', 'dxy'])
+# compute dxy
+for pop1, pop2 in combinations(pops, 2):
+    print(pop1, pop2, calc_dxy(g[mask_variant], mask_multicallable_array[:, 2:], mask_multicallable_array[:, :2], pops[pop1], pops[pop2]))
 ```
 
-## Windowed estimate of diversity and divergence
+## Windowed estimates of $\pi$ and d_{xy}
 
+```{python}
+def create_windows(window_size, chr_len):
+    """Create windows"""
 
-```python
-def diff_within(idx):
-    """Returns per site allelic differences within a population"""
-    ac_pop = g[:, idx].count_alleles()
-    an_pop = np.sum(ac_pop, axis=1)
-    n_pairs = an_pop * (an_pop - 1) / 2
-    n_same = np.sum(ac_pop * (ac_pop - 1) / 2, axis=1)
-    n_diff = n_pairs - n_same
-    return(n_diff)
-
-def diff_between(idx1, idx2):
-    """Returns per site allelic differences between populations"""
-    ac_pop1 = g[:, idx1].count_alleles()
-    ac_pop2 = g[:, idx2].count_alleles()
-    an_pop1 = np.sum(ac_pop1, axis=1)
-    an_pop2 = np.sum(ac_pop2, axis=1)
-    n_pairs = an_pop1 * an_pop2 
-    n_same = np.sum(ac_pop1 * ac_pop2, axis=1)
-    n_diff = n_pairs - n_same
-    return(n_diff)
-
-def windowed_diff(window_size, pop1, pop2):
-    """Returns window mid points, diversity in pop1 and pop2, dxy and fst between pop1 and pop2"""
-    interval_start, interval_end = 1, 13036179 # chromosome size
-
-    window_pos_1_list = [*range(interval_start, int(interval_end), window_size)]
-    window_pos_2_list = [*range(interval_start + (window_size -1), int(interval_end) + window_size, window_size)]
-    window_pos_2_list[-1] = interval_end
-
-    window_list = [list(a) for a in zip(window_pos_1_list,window_pos_2_list)]
-
-    diff_pops = diff_between(pop1, pop2)
-    diff_pop1 = diff_within(pop1)
-    diff_pop2 = diff_within(pop2)
-    cov_pop1 = np.sum(coverage[:, pop1], axis=1)
-    cov_pop2 = np.sum(coverage[:, pop2], axis=1) 
-    callable_starts = start_end[:, 0]
-    callable_ends = start_end[:, 1]
-
-    res = list()
-    for window in window_list:
-
-        mid = (window[0] + window[1]) / 2
-        mask_window = (pos >= window[0]) & (pos <= window[1])
-
-        win_callable_starts = callable_starts[(callable_starts >= window[0]) & (callable_starts <= window[1])]
-        win_callable_ends = callable_ends[(callable_ends >= window[0]) & (callable_ends <= window[1])]
-
-        idx_start_win = int(np.where(callable_starts == win_callable_starts[0])[0])
-        idx_end_win = int(np.where(callable_ends == win_callable_ends[-1])[0])
-
-        if win_callable_starts[0] >= win_callable_ends[0]:
-            win_callable_starts = np.insert(win_callable_starts, 0, window[0])
-            idx_start_win = idx_start_win - 1
-        if win_callable_starts[-1] >= win_callable_ends[-1]:
-            win_callable_ends = np.append(win_callable_ends, window[1])
-            idx_end_win = idx_end_win + 1
-
-        ## pi
-        win_diff_pop1 = np.sum(diff_pop1[mask_window])
-        win_diff_pop2 = np.sum(diff_pop2[mask_window])
-        win_cov_pop1 = cov_pop1[idx_start_win:idx_end_win + 1]
-        win_cov_pop2 = cov_pop2[idx_start_win:idx_end_win + 1]
-        win_pi_pop1 = win_diff_pop1 / (np.sum(comb(2 * win_cov_pop1, 2) * (win_callable_ends - win_callable_starts)))
-        win_pi_pop2 = win_diff_pop2 / (np.sum(comb(2 * win_cov_pop2, 2) * (win_callable_ends - win_callable_starts)))
-        win_mean_pi = (win_pi_pop1 + win_pi_pop2) / 2
-
-        ## dxy and fst
-        win_diff_between = np.sum(diff_pops[mask_window])
-        win_comps = np.sum(2 * win_cov_pop1 * 2 * win_cov_pop2 * (win_callable_ends - win_callable_starts))
-        win_dxy = win_diff_between / win_comps
-        win_fst = (win_dxy - win_mean_pi) / (win_dxy + win_mean_pi)
-
-        res.append((mid, win_dxy, win_fst, win_pi_pop1, win_pi_pop2))
-    
-    df = pd.DataFrame(res, columns=["mid", "dxy", "fst", "pi_1", "pi_2"])
-    return(df)
+    window_starts = [*range(0, int(chr_len), window_size)]
+    window_ends = [*range(0 + window_size, int(chr_len) + window_size, window_size)]
+    window_ends[-1] = int(chr_len)
+    return((window_starts, window_ends))
 ```
 
-One can compute diversity and divergence in windows with `df = windowed_diff(20_000, pop1, pop2)`. The resulting dataframe can easily be plotted with matplotlib.
+```{python}
+# get the chromosomes lengths
+data = subprocess.check_output("bcftools index -s " + vcf_file, shell=True, text=True)
+chromosomes = pd.DataFrame([x.split('\t') for x in data[:-1].split('\n')], columns=["id", "len", "vcf_line"])
 
-```python
-import matplotlib.pyplot as plt
+# create an index for the multicallable bed file
+bed_chrm = np.loadtxt(multicallable_file, usecols=0, dtype=str)
+skiprows, max_rows = list(), list()
+for i, chr in chromosomes.iterrows():
+    chr_idx = np.where(bed_chrm == chr.id)
+    skiprows.append(np.min(chr_idx))
+    max_rows.append(np.max(chr_idx) - np.min(chr_idx) + 1)
 
-fig, ax = plt.subplots(ncols=1, figsize=(16, 4))
-plt.plot(df["mid"], df["dxy"])
-plt.xlabel("Position")
-plt.ylabel(r'$d_{xy}$')
-plt.title(r"Neo-sex chromosome windowed $d_{xy}$")
-plt.show()
+chromosomes['skiprows'] = skiprows
+chromosomes['max_rows'] = max_rows
+
+pi_file = open('output.pi.tsv', 'w')
+dxy_file = open('output.dxy.tsv', 'w')
+window_size = 10000
+
+pi_file.write('chromosome' + '\t' + 'start' + '\t' +  'end' + '\t' +  'pop' + '\t' +  'pi' + '\n')
+dxy_file.write('chromosome' + '\t' + 'start' + '\t' +  'end' + '\t' +  'pop1' + '\t' +  'pop2' + '\t' +  'dxy' + '\n')
+
+for iteration, chr in chromosomes.iterrows():
+
+    callset = allel.read_vcf(vcf_file, region=chr.id, fields=['calldata/GT', 'variants/POS', 'samples'], tabix=True)
+    pos = callset['variants/POS']
+    samples = callset['samples']
+    g = allel.GenotypeArray(allel.GenotypeDaskArray(callset['calldata/GT']))
+    bed_array = np.loadtxt(multicallable_file, usecols=(list(range(1, len(samples) + 3))), skiprows=chr.skiprows, max_rows=chr.max_rows, dtype=int)
+    window_starts, window_ends = create_windows(window_size, chr.len)
+
+    for i in range(len(window_starts)):
+        
+        mask_window = (pos >= window_starts[i]) & (pos <= window_ends[i])
+        win_multicallable_array = intersect(bed_array, window_starts[i], window_ends[i])
+
+        for pop in pops:
+            win_pi = calc_pi(g[mask_window], win_multicallable_array[:, 2:], win_multicallable_array[:, :2], pops[pop])
+            pi_file.write(str(chr.id) + '\t' + str(window_starts[i]) + '\t' +  str(window_ends[i]) + '\t' +  pop + '\t' +  str(win_pi) + '\n')
+
+        for pop1, pop2 in combinations(pops, 2):
+            win_dxy  = calc_dxy(g[mask_window], win_multicallable_array[:, 2:], win_multicallable_array[:, :2], pops[pop1], pops[pop2])
+            dxy_file.write(str(chr.id) + '\t' + str(window_starts[i]) + '\t' +  str(window_ends[i]) + '\t' +  pop1 + '\t' +  pop2 + '\t' +  str(win_dxy) + '\n')
+
+pi_file.close()
+dxy_file.close()
 ```
-
-## Diversity and divergence per partition
-
-To compute diversity and divergence by partition, one must first create VCFs and multicallable bed files for each partition. 
-
-I created region bed files &mdash; 0D, 4D, intergenic, exonic, intronic sites &mdash; to subset partitions from the all-sites VCF and multi-callable bed file. 
-
-### Intergenic, exonic and intronic sites
-
-I subseted genic, exonic and intronic regions of autosomes from the annotation bed file. 
-
-```python 
-#melanargia_ines.PT_MI_8.v2_0.sequences.red_repeats.augustus.gt.bed.gz is the genome annotation bed file
-df = pd.read_csv('melanargia_ines.PT_MI_8.v2_0.sequences.red_repeats.augustus.gt.bed.gz', sep='\t', usecols=[0, 1, 2, 7], names=['chr', 'start', 'end', 'type'])
-
-autosomal_exon = df[(df['type'] == 'exon') & (df['chr'].str.contains('melanargia_ines.PT_MI_8.chromosome_[1-9]\Z|melanargia_ines.PT_MI_8.chromosome_1[0-2]\Z'))]
-
-autosomal_exon[["chr", "start", "end"]].to_csv('autosomes.exon.bed.gz', sep="\t", header=False, index=False)
-
-# the same code was used for genic and intronic regions
-```
-
-### Site degeneracy
-
-Site degeneracy was inferred using `codingSiteTypes.py` available at https://github.com/simonhmartin/genomics_general. 
-
-```bash
-import pandas
-
-python 4-fold/genomics_general/codingSiteTypes.py --ignoreConflicts -a melanargia_ines.PT_MI_8.v2_0.sequences.red_repeats.augustus.gt.gff3 -f gff3 -r melanargia_ines.PT_MI_8.v2_0.sequences.red_softmasked.fasta -o melanargia_ines.sites_types.txt
-
-#melanargia_ines.PT_MI_8.v2_0.sequences.red_repeats.augustus.gt.gff3 is the genome annotation gff3 file
-```
-
-I created regions bed file from the `melanargia_ines.sites_types.txt` output in python. 
-
-```python
-import pandas
-
-autosomes = site_types[site_types['scaffold'].str.contains('melanargia_ines.PT_MI_8.chromosome_[1-9]\Z|melanargia_ines.PT_MI_8.chromosome_1[0-2]\Z')]
-
-autosomes_4D = autosomes[(autosomes["degeneracy"] == 4)]
-autosomes_4D["start"] = autosomes_4D["position"] - 1
-
-# write bed file
-autosomes_4D[["scaffold", "start", "position"]].to_csv('autosomes.4D.bed.gz', sep="\t", header=False, index=False)
-
-```
-
-### Subsetting the all-sites VCF and multi-callable bed file
-
-```bash
-# subset the VCF
-bcftools view -R <region_file.bed> <all_site.vcf.gz> -Oz -o <output.region_subset.vcf.gz>
-
-# subset multi-callable bed
-bedtools intersect -a <all_sites.multicallable.bed.gz> -b <region_file.bed> | bedtools sort | gzip > <output.region_subset.multicallabe.bed.gz>
-
-# the multi-callable bed is then transformed to the numpy array 
-python bed_to_numpy.py -i <output.region_subset.multicallabe.bed.gz> -o <output.region_subset.name.txt.gz> -n <number_of_cores> -v <output.region_subset.vcf.gz>
-```
-
-To compute diversity and divergence on partitions, one can use the function described above, provided that the appropriate VCF and multi-callable bed file are imported. 
-
-

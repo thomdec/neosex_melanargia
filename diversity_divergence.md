@@ -163,7 +163,7 @@ def create_windows(window_size, chr_len):
     return((window_starts, window_ends))
 ```
 
-```{python}
+```python
 # get the chromosomes lengths
 data = subprocess.check_output("bcftools index -s " + vcf_file, shell=True, text=True)
 chromosomes = pd.DataFrame([x.split('\t') for x in data[:-1].split('\n')], columns=["id", "len", "vcf_line"])

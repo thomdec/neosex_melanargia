@@ -1,6 +1,6 @@
 # Estimation of nucleotide diversity and divergence
 
-## Global estimates of $\pi$ and d_{xy}
+## Global estimates of $\pi$ and $d_{xy}$
 
 Estimation of diversity and divergence are based on allelic difference between samples, as well as the total number of pairwise comparison. 
 
@@ -151,7 +151,7 @@ for pop1, pop2 in combinations(pops, 2):
     print(pop1, pop2, calc_dxy(g[mask_variant], mask_multicallable_array[:, 2:], mask_multicallable_array[:, :2], pops[pop1], pops[pop2]))
 ```
 
-## Windowed estimates of $\pi$ and d_{xy}
+## Windowed estimates of $\pi$ and $d_{xy}$
 
 ```python
 def create_windows(window_size, chr_len):

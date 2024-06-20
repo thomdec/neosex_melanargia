@@ -38,7 +38,7 @@ gIMble preprocess -f 0_ref/melanargia_ines.PT_MI_8.v2_0.sequences.fasta -v 3_fre
 
 #### Indels-containing vcf
 
-The indels-containing vcf the neo-sex chromosome was created with a custom commands largely inspired from gIMbleprep (cf [gIMble repo](https://github.com/DRL/gimbleprep)). The vcf was filter with:
+The indels-containing vcf the neo-sex chromosome was created with a custom commands largely inspired from gIMbleprep (cf [gIMble](https://github.com/LohseLab/gimbleprep)). The vcf was filter with:
 
 ```bash
 bcftools norm neoZ.freebayes.vcf.gz -f ../fasta/melanargia_ines.PT_MI_8.v2_0.neoZ.fasta | vcfallelicprimitives --keep-info --keep-geno -t decomposed | bcftools filter -Ov -S . -e '(FMT/DP[0]<8 | FMT/DP[0]>=72) | (FMT/DP[1]<8 | FMT/DP[1]>=66) | (FMT/DP[2]<8 | FMT/DP[2]>=69) | (FMT/DP[3]<8 | FMT/DP[3]>=66) | (FMT/DP[4]<8 | FMT/DP[4]>=51) | (FMT/DP[5]<8 | FMT/DP[5]>=279) | (FMT/DP[6]<8 | FMT/DP[6]>=57) | (FMT/DP[7]<8 | FMT/DP[7]>=66) | (FMT/DP[8]<8 | FMT/DP[8]>=159) | (FMT/DP[9]<8 | FMT/DP[9]>=72) | (FMT/DP[10]<8 | FMT/DP[10]>=60) | (FMT/DP[11]<8 | FMT/DP[11]>=57) | (FMT/DP[12]<8 | FMT/DP[12]>=87) | (FMT/DP[13]<8 | FMT/DP[13]>=72) | (FMT/DP[14]<8 | FMT/DP[14]>=69)' | bcftools filter -Oz -i 'QUAL >= 10 & RPL>=1 & RPR>=1 & SAF>=1 & SAR>=1' | bcftools filter -Oz --SnpGap 2 -Oz -o melanargia_ines.neoZ.snps_structural.vcf.gz

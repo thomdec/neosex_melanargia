@@ -16,7 +16,7 @@ contig1 0   100 1   0   1
 contig1 100 150 1   1   1
 ```
 
-Filtered VCFs were created with [gIMble repo](https://github.com/DRL/gimbleprep) (see [Variant calling](variant_calling_and_filtering.md)). One can use the output of gimbleprep to make the multicallable bed array. When gimbleprep is run with the `-k` parameter (to keep the intermediate files), the hidden directory it produces contains:
+Filtered VCFs were created with [gimbleprep](https://github.com/LohseLab/gimbleprep) (see [Variant calling](variant_calling_and_filtering.md)). One can use the output of gimbleprep to make the multicallable bed array. When gimbleprep is run with the `-k` parameter (to keep the intermediate files), the hidden directory it produces contains:
     - the callable regions for each individual (i.e. regions within the minimum depth set and 3 times the average depth, obtained with mosdepth quantised)
     - a VCF file of failed variants (filtered out in the clean VCF, e.g. low quality sites, indels...)
 
